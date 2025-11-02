@@ -1,17 +1,25 @@
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Get the absolute path of the backend directory
+BASE_DIR = Path(__file__).resolve().parent
 
 # Google API
-GOOGLE_API_KEY = "AIzaSyACLAiOTCjmlTGQ6zex6OUn6BCj8q6OdZw"
-SERVICE_ACCOUNT_FILE = r"C:\\AI_Radar\\backend\\data\\calender.json"
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+SERVICE_ACCOUNT_FILE = BASE_DIR / "data" / "calender.json"
 
 # Visual Crossing Weather API
-WEATHER_API_KEY = "P9A5UL4L2CZJNSM35ADG4YF74"
+WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
 
 # CSV Dataset
-DATA_PATH = "C:\\AI_Radar\\backend\\data\\new.csv"
+DATA_PATH = BASE_DIR / "data" / "new.csv"
 
 # Calendar ID
-CALENDAR_ID = 'en.indian#holiday@group.v.calendar.google.com'
+CALENDAR_ID = os.getenv("CALENDAR_ID", "en.indian#holiday@group.v.calendar.google.com")
 
 # LangChain Gemini Model
-GEMINI_MODEL = "models/gemini-2.5-flash"
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")

@@ -35,6 +35,8 @@ const Tourism = () => {
   const [tourismData, setTourismData] = useState<TourismData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+
   const fetchTourismData = async () => {
     if (!city || !state || !date) {
       setError('Please enter all fields');
@@ -47,7 +49,7 @@ const Tourism = () => {
     try {
       const formattedDate = new Date(date).toISOString().split('T')[0];
 
-      const response = await fetch('http://127.0.0.1:8000/api/tourism', {
+      const response = await fetch(`${API_BASE_URL}/api/tourism`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ city, state, date: formattedDate }),

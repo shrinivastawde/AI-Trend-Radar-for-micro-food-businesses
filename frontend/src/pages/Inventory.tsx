@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Package, AlertTriangle, Plus, Edit, Trash2, TrendingUp } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8000/api'; // replace with your backend URL
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 // Inventory Item type
 interface InventoryItem {
@@ -44,7 +44,7 @@ const Inventory = () => {
   useEffect(() => {
     const fetchInventory = async () => {
       try {
-        const res = await fetch(`${API_BASE}/inventory`);
+        const res = await fetch(`${API_BASE_URL}/api/inventory`);
         const data: InventoryItemResponse[] = await res.json();
         const formatted: InventoryItem[] = data.map((item) => ({
           id: item._id,
@@ -72,7 +72,7 @@ const Inventory = () => {
         unit: newItem.unit,
         expiryDays: parseInt(newItem.expiryDays),
       };
-      const res = await fetch(`${API_BASE}/inventory`, {
+      const res = await fetch(`${API_BASE_URL}/api/inventory`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

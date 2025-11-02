@@ -12,7 +12,7 @@ SPREADSHEET_ID = os.environ.get(
 RANGE_NAME = os.environ.get("GOOGLE_SHEET_RANGE", "Food_Reviews!A:E")
 CREDENTIALS_FILE = os.environ.get(
     "GOOGLE_CREDENTIALS_JSON",
-    "C:\\AI_Radar\\backend\\customerfeedback-12345abcd.json"
+    "customerfeedback-12345abcd.json"
 )
 
 def fetch_all_google_sheet_data():

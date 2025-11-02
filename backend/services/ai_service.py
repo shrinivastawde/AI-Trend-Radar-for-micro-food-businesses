@@ -1,7 +1,7 @@
 import re
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.schema import SystemMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from config import GEMINI_MODEL, GOOGLE_API_KEY
 
 # Set API key
@@ -26,7 +26,7 @@ def generate_vendor_insights(insights_dict: dict) -> str:
     """
     top_places_text = ", ".join([p["Name Place"] for p in insights_dict["Top_Tourist_Spots"][:3]])
     
-    system_msg = SystemMessage(
+    system_msg = AIMessage(
         content="You are an expert AI tourism and business analyst. Provide actionable, concise, and emoji-rich insights for vendors and tourists."
     )
     

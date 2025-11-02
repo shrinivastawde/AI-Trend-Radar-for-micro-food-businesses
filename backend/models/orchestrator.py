@@ -3,6 +3,8 @@ import json
 import re
 import pandas as pd
 from datetime import datetime
+from pathlib import Path
+from dotenv import load_dotenv
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from sklearn.preprocessing import OneHotEncoder, MultiLabelBinarizer
@@ -10,18 +12,60 @@ from sklearn.multioutput import MultiOutputClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.schema import HumanMessage, SystemMessage
-from langchain.memory import ConversationBufferMemory
-from langchain.chains import ConversationChain
+from langchain_core.messages import AIMessage, HumanMessage
+from langchain_community.chat_message_histories import ChatMessageHistory
+# Attempt to import ConversationBufferMemory from langchain; provide a minimal fallback if unavailable.
+try:
+    from langchain.memory import ConversationBufferMemory
+except Exception:
+    class ConversationBufferMemory:
+        """
+        Minimal fallback for ConversationBufferMemory to avoid import errors when langchain
+        is not installed or the module path differs; stores messages in a simple list.
+        """
+        def __init__(self, memory_key="history", return_messages=True):
+            self.memory_key = memory_key
+            self.return_messages = return_messages
+            self.buffer = []
+
+        def add_message(self, message):
+            self.buffer.append(message)
+
+        def load_memory_variables(self, inputs=None):
+            if self.return_messages:
+                return {self.memory_key: list(self.buffer)}
+            return {self.memory_key: " ".join(str(m) for m in self.buffer)}
+
+
+
+# Load environment variables
+load_dotenv()
 
 # ============================
 # 1️⃣ Configuration
 # ============================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, "C:\\AI_Radar\\backend\\data\\calender.json")
-ORDERS_CSV = os.path.join(BASE_DIR, "C:\\AI_Radar\\backend\\data\\order.csv")
-MENU_CSV = os.path.join(BASE_DIR, "C:\\AI_Radar\\backend\\data\\menu.csv")
-os.environ["GOOGLE_API_KEY"] = os.environ.get("GOOGLE_API_KEY", "YOUR_GEMINI_KEY")
+# ============================
+# 1️⃣ Configuration
+# ============================
+# Get the base directory (backend folder, not models folder)
+BASE_DIR = Path(__file__).resolve().parent.parent  # Go up twice: models -> backend
+
+# Load file paths from environment or use defaults
+SERVICE_ACCOUNT_FILE = BASE_DIR / os.getenv("SERVICE_ACCOUNT_FILE", "data/calender.json")
+ORDERS_CSV = BASE_DIR / os.getenv("ORDERS_CSV", "data/order.csv")
+MENU_CSV = BASE_DIR / os.getenv("MENU_CSV", "data/menu.csv")
+
+
+# Get API key from environment
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+if not GOOGLE_API_KEY:
+    raise ValueError("GOOGLE_API_KEY not found in environment variables")
+
+os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
+
+# Get Calendar ID from environment
+CALENDAR_ID = os.getenv("CALENDAR_ID", "en.indian#holiday@group.v.calendar.google.com")
+
 
 # ============================
 # 2️⃣ Season & festival helper
@@ -33,6 +77,7 @@ def month_to_season(month: int) -> str:
         return 'Monsoon'
     else:
         return 'Winter'
+
 
 def fetch_festivals(service, calendar_id, start_date='2025-01-01', end_date='2025-12-31'):
     events_result = service.events().list(
@@ -53,28 +98,32 @@ def fetch_festivals(service, calendar_id, start_date='2025-01-01', end_date='202
         df = pd.DataFrame(columns=['date','festival','season'])
     return df
 
+
 # ============================
 # 3️⃣ Initialize data
 # ============================
-calendar_id = 'en.indian#holiday@group.v.calendar.google.com'
 try:
     credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=['https://www.googleapis.com/auth/calendar.readonly']
+        str(SERVICE_ACCOUNT_FILE), 
+        scopes=['https://www.googleapis.com/auth/calendar.readonly']
     )
     service = build('calendar', 'v3', credentials=credentials)
-    festivals_df = fetch_festivals(service, calendar_id)
+    festivals_df = fetch_festivals(service, CALENDAR_ID)
 except Exception as e:
     print("⚠️ Google Calendar fetch failed:", e)
     festivals_df = pd.DataFrame(columns=['date','festival','season'])
 
-orders_df = pd.read_csv(ORDERS_CSV)
+
+orders_df = pd.read_csv(str(ORDERS_CSV))
 orders_df['order_date'] = pd.to_datetime(orders_df['order_date'])
 
-menu_df = pd.read_csv(MENU_CSV)
+
+menu_df = pd.read_csv(str(MENU_CSV))
 menu_df['available_toppings'] = menu_df['available_toppings'].apply(
     lambda x: [s.strip() for s in str(x).split(',')] if pd.notna(x) else [])
 menu_df['available_addons'] = menu_df['available_addons'].apply(
     lambda x: [s.strip() for s in str(x).split(',')] if pd.notna(x) else [])
+
 
 # Merge season/festival info
 orders_df = orders_df.merge(
@@ -90,6 +139,7 @@ orders_df['toppings_list'] = orders_df['toppings_selected'].apply(
 orders_df['addons_list'] = orders_df['addons_selected'].apply(
     lambda x: eval(x) if isinstance(x, str) and x.startswith('[') else [])
 
+
 # ============================
 # 4️⃣ Train models
 # ============================
@@ -97,23 +147,28 @@ X = orders_df[['dish_name', 'season', 'festival']]
 encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
 X_encoded = encoder.fit_transform(X)
 
+
 mlb_toppings = MultiLabelBinarizer()
 mlb_addons = MultiLabelBinarizer()
 y_toppings = mlb_toppings.fit_transform(orders_df['toppings_list'])
 y_addons = mlb_addons.fit_transform(orders_df['addons_list'])
 
+
 X_train, X_test, y_train_t, y_test_t = train_test_split(X_encoded, y_toppings, test_size=0.2, random_state=42)
 _, _, y_train_a, y_test_a = train_test_split(X_encoded, y_addons, test_size=0.2, random_state=42)
 
+
 topping_model = MultiOutputClassifier(RandomForestClassifier(n_estimators=100, random_state=42)).fit(X_train, y_train_t)
 addon_model = MultiOutputClassifier(RandomForestClassifier(n_estimators=100, random_state=42)).fit(X_train, y_train_a)
+
 
 # ============================
 # 5️⃣ LangChain / Gemini setup
 # ============================
 chat_model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.7)
 memory = ConversationBufferMemory(memory_key="history", return_messages=True)
-conv_chain = ConversationChain(llm=chat_model, memory=memory, verbose=True)
+conv_chain = ChatMessageHistory(llm=chat_model, memory=memory, verbose=True)
+
 
 # ============================
 # 6️⃣ Tools
@@ -128,6 +183,7 @@ def clean_list_items(items):
             clean.append(i)
     return clean
 
+
 def generate_dish_advisory_tool_fn(payload: str) -> str:
     try:
         data = json.loads(payload)
@@ -136,6 +192,7 @@ def generate_dish_advisory_tool_fn(payload: str) -> str:
         lang = data['language']
         option = data.get('option', 'both')
 
+
         if option == "topping":
             prompt = f"Suggest 3–5 toppings for {dish} in {season} season."
         elif option == "addon":
@@ -143,23 +200,28 @@ def generate_dish_advisory_tool_fn(payload: str) -> str:
         else:
             prompt = f"Suggest 3–5 toppings and 3–5 add-ons for {dish} in {season} season."
 
+
         if lang.lower() == "marathi":
             prompt += " Translate all suggestions into Marathi."
 
-        system_msg = SystemMessage(content="Return only JSON in this format: {\"toppings\":[],\"addons\":[]}")
+
+        system_msg = AIMessage(content="Return only JSON in this format: {\"toppings\":[],\"addons\":[]}")
         user_msg = HumanMessage(content=prompt)
         response = chat_model.invoke([system_msg, user_msg])
         raw = response.content.strip()
         match = re.search(r"\{.*\}", raw, re.DOTALL)
         result = json.loads(match.group(0)) if match else {}
 
+
         # Flatten objects
         result["toppings"] = clean_list_items(result.get("toppings", []))
         result["addons"] = clean_list_items(result.get("addons", []))
         return json.dumps(result)
 
+
     except Exception as e:
         return json.dumps({"error": "llm_failed", "message": str(e)})
+
 
 # ============================
 # 7️⃣ Orchestrator
@@ -169,7 +231,9 @@ def suggest_items_orchestrator(order_date: str, dish_name: str, language: str = 
     season = month_to_season(datetime.now().month)
     festival = "None"
 
+
     toppings, addons = [], []
+
 
     llm_out = json.loads(generate_dish_advisory_tool_fn(json.dumps({
         "dish_name": dish_name,
@@ -178,13 +242,16 @@ def suggest_items_orchestrator(order_date: str, dish_name: str, language: str = 
         "option": option
     })))
 
+
     toppings = clean_list_items(llm_out.get("toppings", []))
     addons = clean_list_items(llm_out.get("addons", []))
+
 
     if not toppings:
         toppings = ["No suggestions"]
     if not addons:
         addons = ["No suggestions"]
+
 
     return {
         "dish_name": dish_name,

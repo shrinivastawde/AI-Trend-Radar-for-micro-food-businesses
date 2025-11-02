@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Send, Mic, TrendingUp, Calendar, Package, BarChart3, ChefHat, Eye } from 'lucide-react';
+import { ArrowLeft, Send, Mic, TrendingUp, Calendar, Package, BarChart3, ChefHat, Eye, Heart, MessageSquare } from 'lucide-react';
 import aiAssistantImage from '@/assets/ai-assistant.jpg';
 
 interface Message {
@@ -51,19 +51,36 @@ const ChefGuru = () => {
   const [chatFlowData, setChatFlowData] = useState<ChatFlowData>({ step: 1 });
 
   const [popularityData, setPopularityData] = useState<PopularityData[]>([]);
+  const [isLoadingTrends, setIsLoadingTrends] = useState(false);
+  const [trendsError, setTrendsError] = useState<string | null>(null);
 
+
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
   // Fetch trend data when Trends tab is active
   useEffect(() => {
     if (activeTab === 'trends') {
-      fetch('http://localhost:5000/api/food-trends')
+      setIsLoadingTrends(true);
+      setTrendsError(null);
+
+      fetch(`${API_BASE_URL}/api/food-trends`)
         .then(async (res) => {
           if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
           return res.json();
         })
         .then((json) => {
-          if (json.status === 'success') setPopularityData(json.data);
+          if (json.status === 'success') {
+            setPopularityData(json.data);
+          } else {
+            setTrendsError('Failed to load trends data');
+          }
         })
-        .catch(console.error);
+        .catch((error) => {
+          console.error('Trends fetch error:', error);
+          setTrendsError('Error fetching trends data');
+        })
+        .finally(() => {
+          setIsLoadingTrends(false);
+        });
     }
   }, [activeTab]);
 
@@ -220,7 +237,7 @@ const ChefGuru = () => {
 
       {/* Tabs */}
       <div className="container mx-auto px-4 pb-6 flex-1">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'chat' | 'trends')} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 bg-gray-800 border-purple-700">
             <TabsTrigger value="chat" className="data-[state=active]:bg-purple-600">💬 Chat Assistant</TabsTrigger>
             <TabsTrigger value="trends" className="data-[state=active]:bg-purple-600">📊 Trend Analysis</TabsTrigger>
@@ -262,8 +279,89 @@ const ChefGuru = () => {
           </TabsContent>
 
           {/* Trends */}
-          <TabsContent value="trends">
-            <p className="text-gray-400 text-center">📊 Coming soon: seasonal trends & analytics!</p>
+          <TabsContent value="trends" className="space-y-4">
+            {isLoadingTrends ? (
+              <div className="text-center text-gray-400 py-8">
+                <BarChart3 className="h-12 w-12 mx-auto mb-4 animate-pulse text-purple-400" />
+                <p>Loading trends data...</p>
+              </div>
+            ) : trendsError ? (
+              <Card className="bg-gradient-to-br from-red-900/20 to-black border-red-700 p-6">
+                <p className="text-red-400 text-center">⚠️ {trendsError}</p>
+              </Card>
+            ) : popularityData.length === 0 ? (
+              <Card className="bg-gradient-to-br from-gray-900 to-black border-purple-700 p-6">
+                <p className="text-gray-400 text-center">📊 No trends data available</p>
+              </Card>
+            ) : (
+              <>
+                <Card className="bg-gradient-to-br from-purple-900/30 to-black border-purple-700">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-purple-400">
+                      <TrendingUp className="h-6 w-6" />
+                      Top Trending Dishes
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Based on views, likes, and engagement
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+
+                <ScrollArea className="h-[500px]">
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {popularityData.map((dish, index) => (
+                      <Card key={index} className="bg-gradient-to-br from-gray-900 to-black border-purple-700 hover:border-purple-500 transition-all">
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <CardTitle className="text-lg text-purple-300">
+                              #{index + 1} {dish.dish_name}
+                            </CardTitle>
+                            <div className="text-2xl font-bold text-purple-400">
+                              {dish.popularity_score.toFixed(1)}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="flex items-center gap-2 text-gray-400">
+                                <Eye className="h-4 w-4" />
+                                Views
+                              </span>
+                              <span className="text-white font-semibold">{dish.views.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="flex items-center gap-2 text-gray-400">
+                                <Heart className="h-4 w-4" />
+                                Likes
+                              </span>
+                              <span className="text-white font-semibold">{dish.likes.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="flex items-center gap-2 text-gray-400">
+                                <MessageSquare className="h-4 w-4" />
+                                Comments
+                              </span>
+                              <span className="text-white font-semibold">{dish.comments_count.toLocaleString()}</span>
+                            </div>
+                          </div>
+
+                          {/* Popularity bar */}
+                          <div className="mt-4">
+                            <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all"
+                                style={{ width: `${Math.min((dish.popularity_score / Math.max(...popularityData.map(d => d.popularity_score))) * 100, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </>
+            )}
           </TabsContent>
         </Tabs>
       </div>

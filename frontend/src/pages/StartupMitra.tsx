@@ -47,6 +47,8 @@ const StartupMitra = () => {
     t('startup.example3'),
   ];
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+
   // 🔥 Send user message to Flask backend (LangChain)
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -63,7 +65,7 @@ const StartupMitra = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/chat', {
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: inputValue }),

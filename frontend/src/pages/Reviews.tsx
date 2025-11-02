@@ -90,10 +90,12 @@ const Reviews = () => {
     }
   ];
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+
 useEffect(() => {
   const fetchSentimentData = async () => {
     try {
-      const response = await fetch('http://localhost:5000/gap_analysis');
+      const response = await fetch(`${API_BASE_URL}/gap_analysis`);
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
