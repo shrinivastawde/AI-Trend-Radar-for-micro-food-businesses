@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from insight_backend import get_insight_for_dish
+from services.insight_backend import get_insight_for_dish
 
 insight_routes = Blueprint("insight_routes", __name__)
 

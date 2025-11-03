@@ -1,12 +1,16 @@
 import os
 import pandas as pd
 import pickle
+from pathlib import Path
 
-RAW_REVIEWS_CSV = "raw_reviews.csv"
-OUTPUT_ANALYSIS_CSV = "gap_output.csv"
+# Base directory: adjust according to your script location
+BASE_DIR = Path(__file__).resolve().parent.parent  # backend/
+
+RAW_REVIEWS_CSV = BASE_DIR / "data" / "raw_reviews.csv"
+OUTPUT_ANALYSIS_CSV = BASE_DIR / "data" / "gap_output.csv"
 VENDOR_SAMPLE_FRACTION = 0.1
-SENTIMENT_MODEL_FILE = "sentiment_model.pkl"
-ASPECT_MODEL_FILE = "aspect_model.pkl"
+SENTIMENT_MODEL_FILE = BASE_DIR / "models" / "sentiment_model.pkl"
+ASPECT_MODEL_FILE = BASE_DIR / "models" / "aspect_model.pkl"
 
 CATEGORIES = [
     "Food",

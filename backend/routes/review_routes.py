@@ -1,6 +1,6 @@
 # review_routes.py
 from flask import Blueprint, jsonify
-from sheet_analyzer import fetch_all_google_sheet_data
+from services.sheet_analyzer import fetch_all_google_sheet_data
 from collections import Counter
 
 review_routes = Blueprint("review_routes", __name__)

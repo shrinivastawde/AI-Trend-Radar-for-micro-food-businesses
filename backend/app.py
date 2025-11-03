@@ -4,14 +4,15 @@ from flask_cors import CORS
 from routes.chat_routes import chat_routes
 from routes.tourism_routes import tourism_routes
 from models.orchestrator import suggest_items_orchestrator
-from insight_routes import insight_routes
+from routes.insights_routes import insight_routes
 from routes.review_routes import review_routes
-from sheet_analyzer import fetch_all_google_sheet_data  # ✅ Updated import
-from gap_analysis import perform_gap_analysis  # ✅ New import
+from services.sheet_analyzer import fetch_all_google_sheet_data  # ✅ Updated import
+from services.gap_analysis import perform_gap_analysis  # ✅ New import
 import pandas as pd  # ✅ For food-trends
 import os
 from pymongo import MongoClient
 from bson.objectid import ObjectId
+from pathlib import Path
 
 # =====================================================
 # App Configuration
@@ -38,7 +39,9 @@ app.register_blueprint(review_routes, url_prefix="/api")  # ✅ Reviews backend
 # =====================================================
 # Constants
 # =====================================================
-OUTPUT_CSV = "output.csv"  # For food trends
+BASE_DIR = Path(__file__).resolve().parent #  backend/
+
+OUTPUT_CSV = BASE_DIR / "data" / "output.csv"
 
 # =====================================================
 # Root Route

@@ -8,6 +8,7 @@ import nltk
 import dotenv
 from dotenv import load_dotenv
 import os
+from pathlib import Path
 
 # Make sure to download vader lexicon once if not done
 nltk.download("vader_lexicon")
@@ -21,8 +22,13 @@ YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 YOUTUBE_VIDEO_URL = "https://www.googleapis.com/youtube/v3/videos"
 YOUTUBE_COMMENTS_URL = "https://www.googleapis.com/youtube/v3/commentThreads"
 
-DISHES_CSV = "indian_dishes_200.csv"
-OUTPUT_CSV = "output.csv"
+# Get absolute path to backend directory (one level above 'services')
+BASE_DIR = Path(__file__).resolve().parent.parent  # services/ -> backend/
+
+# Construct paths to CSV files inside 'data' folder
+DISHES_CSV = BASE_DIR / "data" / "indian_dishes_200.csv"
+OUTPUT_CSV = BASE_DIR / "data" / "output.csv"
+
 
 # Load dish names
 with open(DISHES_CSV, "r", encoding="utf-8") as f:
